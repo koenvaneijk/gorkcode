@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from re import Match
-from typing import Any, Dict, Final, List, Optional, Tuple, Union
+from typing import Any, Dict, Final, List, Optional, Set, Tuple, Union
 
 # Configuration
 MODEL: str = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
@@ -34,7 +34,7 @@ MAX_FILE_SIZE: Final[int] = 100 * 1024  # 100KB
 MAX_LINE_LENGTH: Final[int] = 500
 MAX_TOOL_LOOPS: Final[int] = 24
 
-TOOLS: Final[list[dict[str, Any]]] = [
+TOOLS: Final[List[Dict[str, Any]]] = [
     {
         "type": "function",
         "name": "request_files",
@@ -223,7 +223,7 @@ def system_summary() -> Dict[str, Any]:
     if _CACHED_SYSTEM_INFO is not None:
         return _CACHED_SYSTEM_INFO
     try:
-        tools = [
+        tools: List[str] = [
             "apt",
             "bash",
             "curl",
@@ -242,7 +242,7 @@ def system_summary() -> Dict[str, Any]:
             "wget",
             "zip",
         ]
-        versions = {
+        versions: Dict[str, str] = {
             tool: (run(f"{tool} --version") or "").split("\n")[0][:80]
             for tool in ["git", "python3", "pip", "node", "npm", "docker", "gcc"]
             if shutil.which(tool)
@@ -328,7 +328,7 @@ def safe_read_file(
 
 
 def get_map(root: str, max_files: int = 100) -> str:
-    binary_ext = {
+    binary_ext: Set[str] = {
         ".png",
         ".jpg",
         ".jpeg",
@@ -357,7 +357,7 @@ def get_map(root: str, max_files: int = 100) -> str:
         ".ttf",
         ".eot",
     }
-    exclude_dirs = {
+    exclude_dirs: Set[str] = {
         ".git",
         "node_modules",
         "__pycache__",
@@ -406,7 +406,7 @@ def get_map(root: str, max_files: int = 100) -> str:
 
 
 def run_shell_interactive(cmd: str) -> Tuple[List[str], int]:
-    output_lines = []
+    output_lines: List[str] = []
     process = subprocess.Popen(
         cmd,
         shell=True,
@@ -471,7 +471,7 @@ class Spinner:
 class GorkCode:
     def __init__(self) -> None:
         self.repo_root: str = run("git rev-parse --show-toplevel") or os.getcwd()
-        self.context_files: set[str] = set()
+        self.context_files: Set[str] = set()
         self.file_contents: Dict[str, str] = {}
         self.pending_notes: List[str] = []
         self.previous_response_id: Optional[str] = None
@@ -578,7 +578,7 @@ class GorkCode:
         ]
 
     def extract_text(self, response: Dict[str, Any]) -> str:
-        texts = []
+        texts: List[str] = []
         for item in response.get("output", []):
             if item.get("type") != "message":
                 continue
@@ -590,7 +590,7 @@ class GorkCode:
         return "\n".join(texts).strip()
 
     def extract_function_calls(self, response: Dict[str, Any]) -> List[Dict[str, Any]]:
-        calls = []
+        calls: List[Dict[str, Any]] = []
         for item in response.get("output", []):
             if item.get("type") == "function_call":
                 calls.append(item)
@@ -869,12 +869,13 @@ class GorkCode:
             self.previous_response_id = response.get("id") or self.previous_response_id
 
     def cmd_add(self, pattern: str) -> None:
-        found = [
+        found: List[str] = [
             f
             for f in glob.glob(pattern, root_dir=self.repo_root, recursive=True)
             if Path(self.repo_root, f).is_file()
         ]
-        added, skipped = [], []
+        added: List[str] = []
+        skipped: List[str] = []
         for f in found:
             content, error = safe_read_file(f, self.repo_root, confirm_large=True)
             if error:
