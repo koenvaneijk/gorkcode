@@ -676,6 +676,7 @@ class GorkCode:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content)
             self.context_files.add(path)
+            self.file_contents[path] = content
             for ln in content.splitlines():
                 print(styled(f"+{ln}", "32m"))
             print(styled(f"Created {path}", "32m"))
@@ -732,6 +733,7 @@ class GorkCode:
         try:
             p.write_text(new_content)
             self.context_files.add(path)
+            self.file_contents[path] = new_content
             print(styled(f"Applied {path}", "32m"))
             return {"ok": True, "path": path, "diff": truncate(diff_lines)}
         except (PermissionError, OSError) as e:
