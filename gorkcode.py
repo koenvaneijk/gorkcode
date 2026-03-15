@@ -26,10 +26,10 @@ from re import Match
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 # Configuration
-MODEL: Final[str] = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
-INPUT_PRICE: Final[float] = 2.00 / 1_000_000   # input
-CACHED_PRICE: Final[float] = 0.20 / 1_000_000  # cached input
-OUTPUT_PRICE: Final[float] = 6.00 / 1_000_000  # output
+MODEL: str = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
+INPUT_PRICE: float = float(os.getenv("XAI_INPUT_PRICE", "2.00")) / 1_000_000  # input
+CACHED_PRICE: float = float(os.getenv("XAI_CACHED_PRICE", "0.20")) / 1_000_000  # cached input
+OUTPUT_PRICE: float = float(os.getenv("XAI_OUTPUT_PRICE", "6.00")) / 1_000_000  # output
 MAX_FILE_SIZE: Final[int] = 100 * 1024  # 100KB
 MAX_LINE_LENGTH: Final[int] = 500
 MAX_TOOL_LOOPS: Final[int] = 24
@@ -119,6 +119,23 @@ TOOLS: Final[list[dict[str, Any]]] = [
         },
     },
 ]
+
+
+SYSTEM_PROMPT: Final[str] = (
+    "You are a coding expert working inside a local repository tool.\n\n"
+    "Use tools via function calls. Never output XML, markdown code blocks, or any other format for tool calls.\n\n"
+    "Behavior rules:\n"
+    "- Think step by step before deciding to use tools.\n"
+    "- Answer normally when no tool is needed.\n"
+    "- Always read relevant files using request_files before editing them (unless creating a brand new file).\n"
+    "- Prefer small, precise edits. Make the 'find' string as short and unique as possible.\n"
+    "- Preserve original formatting, whitespace, and surrounding code style exactly.\n"
+    "- If an edit's exact find text is not found, read the file again and use a more precise match.\n"
+    "- Only run shell commands when genuinely necessary.\n"
+    "- After changes, call commit_changes with a short message if and only if files were actually modified.\n"
+    "- Keep all user-facing answers concise.\n\n"
+    "Important: Use the provided tools via function calling. Do not output tool calls as raw text, JSON, or XML in your messages."
+)
 
 
 def ansi(code: str) -> str:
@@ -455,10 +472,26 @@ class GorkCode:
     def __init__(self) -> None:
         self.repo_root: str = run("git rev-parse --show-toplevel") or os.getcwd()
         self.context_files: set[str] = set()
+        self.file_contents: Dict[str, str] = {}
         self.pending_notes: List[str] = []
         self.previous_response_id: Optional[str] = None
         self.last_usage: Optional[Dict[str, Any]] = None
         self.session_cost: float = 0.0
+        self._map_cache: Optional[str] = None
+        self._map_mtime: float = 0.0
+        self._context_sent: bool = False
+
+    def get_repo_map(self) -> str:
+        """Cached version of get_map that respects .gitignore and uses mtime."""
+        git_index = Path(self.repo_root, ".git", "index")
+        current_mtime = git_index.stat().st_mtime if git_index.exists() else 0.0
+
+        if self._map_cache is not None and abs(current_mtime - self._map_mtime) < 0.1:
+            return self._map_cache
+
+        self._map_cache = get_map(self.repo_root)
+        self._map_mtime = current_mtime
+        return self._map_cache
 
     def xai_request(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         api_key = os.getenv("XAI_API_KEY")
@@ -521,20 +554,25 @@ class GorkCode:
         suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
         current_time = now.strftime(f"%A {day}{suffix} of %B %Y, %H:%M %Z")
 
-        files_block = []
-        for f in sorted(self.context_files):
-            if not Path(self.repo_root, f).exists():
-                continue
-            content, error = safe_read_file(f, self.repo_root, confirm_large=False)
-            body = content if error is None else f"[{error}]"
-            files_block.append(f"File: {f}\n```\n{body}\n```")
-
         parts = [
-            f"### Repo Map\n{get_map(self.repo_root)}",
+            f"### Repo Map\n{self.get_repo_map()}",
             f"### Loaded Files\n{', '.join(sorted(self.context_files)) if self.context_files else '[none]'}",
         ]
-        if files_block:
-            parts.append("### File Contents\n" + "\n".join(files_block))
+
+        # Only send full file contents on first message or after loading new files
+        if not self._context_sent and self.context_files:
+            files_block = []
+            for f in sorted(self.context_files):
+                if f in self.file_contents:
+                    body = self.file_contents[f]
+                else:
+                    content, error = safe_read_file(f, self.repo_root, confirm_large=False)
+                    body = content if error is None else f"[{error}]"
+                files_block.append(f"File: {f}\n```\n{body}\n```")
+            if files_block:
+                parts.append("### File Contents\n" + "\n".join(files_block))
+            self._context_sent = True
+
         if self.pending_notes:
             parts.append("### Extra Context\n" + "\n\n".join(self.pending_notes))
             self.pending_notes.clear()
@@ -546,22 +584,7 @@ class GorkCode:
         return [
             {
                 "role": "system",
-                "content": (
-                    "You are a coding expert working inside a local repository tool.\n\n"
-                    "Use tools via function calls. Never output XML, markdown code blocks, or any other format for tool calls.\n\n"
-                    "Behavior rules:\n"
-                    "- Think step by step before deciding to use tools.\n"
-                    "- Answer normally when no tool is needed.\n"
-                    "- Always read relevant files using request_files before editing them (unless creating a brand new file).\n"
-                    "- Prefer small, precise edits. Make the 'find' string as short and unique as possible.\n"
-                    "- Preserve original formatting, whitespace, and surrounding code style exactly.\n"
-                    "- If an edit's exact find text is not found, read the file again and use a more precise match.\n"
-                    "- Only run shell commands when genuinely necessary.\n"
-                    "- After changes, call commit_changes with a short message if and only if files were actually modified.\n"
-                    "- Keep all user-facing answers concise.\n\n"
-                    "Important: When calling tools, output raw JSON. "
-                    "Do not escape any quotes inside the JSON arguments. Output raw double quotes."
-                ),
+                "content": SYSTEM_PROMPT,
             },
             {"role": "user", "content": "\n\n".join(parts)},
         ]
@@ -606,6 +629,7 @@ class GorkCode:
                 print(styled(f"  {error}", "90m"))
             else:
                 self.context_files.add(path)
+                self.file_contents[path] = content
                 added.append(path)
                 results.append({"path": path, "ok": True, "content": content})
                 print(styled(f"✓ {path}", "32m"))
@@ -614,6 +638,7 @@ class GorkCode:
                     tokens = len(content) // 4
                     print(styled(f"  {len(content):,} chars • {len(content.splitlines())} lines • ~{tokens:,} tokens", "90m"))
         if added:
+            self._context_sent = False  # reset so we resend on next turn
             print(styled(f"+{len(added)} file(s) loaded", "93m"))
         elif not results:
             print(styled("No valid paths provided", "33m"))
@@ -625,7 +650,10 @@ class GorkCode:
             path = path.strip()
             if path in self.context_files:
                 self.context_files.discard(path)
+                self.file_contents.pop(path, None)
                 removed.append(path)
+        if removed:
+            self._context_sent = False
         return {"removed": removed}
 
     def tool_create_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -963,6 +991,7 @@ class GorkCode:
                     self.previous_response_id = None
                     self.pending_notes.clear()
                     self.session_cost = 0.0
+                    self._context_sent = False
                     print("Conversation cleared.")
                 elif command == "/undo":
                     out = run(f"git -C {self.repo_root} reset --soft HEAD~1")
