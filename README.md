@@ -103,13 +103,11 @@ The full system prompt and behavior rules for the AI are embedded directly in `g
 
 ## 🌐 Browser Extension
 
-Run `python gorkbridge.py` (in separate terminal).
+Gorkcode automatically selects a free bridge port (shown in /status and on launch). Set GORK_BRIDGE_PORT env to override.
 
-Load the `chrome_extension/` folder as unpacked extension in Chrome.
+Load the `chrome_extension/` folder as unpacked extension in Chrome. Use the popup to select gorkcode session by port.
 
 Use the `browser_execute` tool to run JS in the active tab. Output/logs are returned like shell commands.
-
-See popup for manual testing.
 
 ## 📄 License
 

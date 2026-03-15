@@ -14,6 +14,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -33,6 +34,7 @@ OUTPUT_PRICE: float = float(os.getenv("XAI_OUTPUT_PRICE", "6.00")) / 1_000_000  
 MAX_FILE_SIZE: Final[int] = 100 * 1024  # 100KB
 MAX_LINE_LENGTH: Final[int] = 500
 MAX_TOOL_LOOPS: Final[int] = 24
+DEFAULT_BRIDGE_PORT: Final[int] = 9876
 
 TOOLS: Final[List[Dict[str, Any]]] = [
     {
@@ -496,6 +498,7 @@ class GorkCode:
         self.previous_response_id: Optional[str] = None
         self.last_usage: Optional[Dict[str, Any]] = None
         self.session_cost: float = 0.0
+        self.bridge_port: int = self._get_bridge_port()
         self._map_cache: Optional[str] = None
         self._map_mtime: float = 0.0
 
@@ -510,6 +513,15 @@ class GorkCode:
         self._map_cache = get_map(self.repo_root)
         self._map_mtime = current_mtime
         return self._map_cache
+
+    def _get_bridge_port(self) -> int:
+        "Return a free port starting from DEFAULT_BRIDGE_PORT."
+        port = int(os.getenv("GORK_BRIDGE_PORT", str(DEFAULT_BRIDGE_PORT)))
+        for p in range(port, port + 20):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(("localhost", p)) != 0:
+                    return p
+        return port
 
     def xai_request(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         api_key = os.getenv("XAI_API_KEY")
@@ -802,7 +814,7 @@ class GorkCode:
 
         try:
             req = urllib.request.Request(
-                "http://localhost:9876/execute",
+                f"http://localhost:{self.bridge_port}/execute",
                 headers={"Content-Type": "application/json"},
                 data=json.dumps({"code": code}).encode(),
                 method="POST",
@@ -812,7 +824,7 @@ class GorkCode:
             print(styled("✓ Sent to browser extension", "32m"))
             return {"ok": True, "code": code[:80] + "...", "status": "executed", "result": result}
         except Exception as e:
-            return {"ok": False, "error": f"bridge not reachable: {e}. Run 'python gorkbridge.py' and load the extension."}
+            return {"ok": False, "error": f"bridge not reachable (port {self.bridge_port}): {e}. Start bridge or set GORK_BRIDGE_PORT."}
 
     def execute_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         if name == "request_files":
@@ -936,6 +948,7 @@ class GorkCode:
     def cmd_status(self) -> None:
         print(styled(f"Repository: {self.repo_root}", "36m"))
         print(styled(f"Loaded: {len(self.context_files)} file(s)", "36m"))
+        print(styled(f"Bridge port: {self.bridge_port}", "36m"))
         if self.context_files:
             for f in sorted(self.context_files)[:8]:
                 print(styled(f"  • {f}", "90m"))
@@ -965,6 +978,7 @@ class GorkCode:
             f"{styled(' øgork ', '48;2;255;255;255;30m')}"
             f"{styled(' code ', '48;5;236;37m')}"
             f" {styled(' ' + MODEL + ' ', '48;5;236;37m')}"
+            f" {styled(' port:' + str(self.bridge_port) + ' ', '48;5;236;37m')}"
             f" {styled(' ctrl+d to send ', '48;5;236;37m')}"
         )
 

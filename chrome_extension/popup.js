@@ -1,11 +1,12 @@
 document.getElementById('capture').addEventListener('click', async () => {
+  const port = document.getElementById('port').value || 9876;
   const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
   const output = document.getElementById('output');
   
-  output.textContent = `Captured:\nTitle: ${tab.title}\nURL: ${tab.url}\n\nState sent to bridge.`;
+  output.textContent = `Captured to port ${port}:\nTitle: ${tab.title}\nURL: ${tab.url}\n\nState sent to bridge.`;
   
   try {
-    await fetch('http://localhost:9876/update', {
+    await fetch(`http://localhost:${port}/update`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -15,7 +16,7 @@ document.getElementById('capture').addEventListener('click', async () => {
       })
     });
   } catch (e) {
-    output.textContent += '\n\nBridge not running.';
+    output.textContent += '\n\nBridge not running on that port.';
   }
 });
 
