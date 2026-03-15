@@ -27,6 +27,9 @@ from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 # Configuration
 MODEL: Final[str] = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
+INPUT_PRICE: Final[float] = 2.00 / 1_000_000   # input
+CACHED_PRICE: Final[float] = 0.20 / 1_000_000  # cached input
+OUTPUT_PRICE: Final[float] = 6.00 / 1_000_000  # output
 MAX_FILE_SIZE: Final[int] = 100 * 1024  # 100KB
 MAX_LINE_LENGTH: Final[int] = 500
 MAX_TOOL_LOOPS: Final[int] = 24
@@ -455,6 +458,7 @@ class GorkCode:
         self.pending_notes: List[str] = []
         self.previous_response_id: Optional[str] = None
         self.last_usage: Optional[Dict[str, Any]] = None
+        self.session_cost: float = 0.0
 
     def xai_request(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         api_key = os.getenv("XAI_API_KEY")
@@ -481,6 +485,13 @@ class GorkCode:
             with urllib.request.urlopen(req) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 self.last_usage = body.get("usage")
+                if self.last_usage:
+                    inp = self.last_usage.get("input_tokens", 0)
+                    cached = self.last_usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+                    outp = self.last_usage.get("output_tokens", 0)
+                    input_c = ((inp or 0) - cached) * INPUT_PRICE + cached * CACHED_PRICE
+                    output_c = (outp or 0) * OUTPUT_PRICE
+                    self.session_cost += input_c + output_c
                 spinner.stop()
                 print(f"{styled(' øgork ', '48;2;255;255;255;30m')} {styled('done', '90m')}\n")
                 return body
@@ -905,8 +916,12 @@ class GorkCode:
             outp = last.get("output_tokens", 0)
             cached = last.get("input_tokens_details", {}).get("cached_tokens", 0)
             cache_pct = f"{int(cached / inp * 100) if inp > 0 else 0}%"
-            reason = last.get("output_tokens_details", {}).get("reasoning_tokens", 0)
-            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓({reason:,} reason)"
+
+            input_cost = ((inp or 0) - cached) * INPUT_PRICE + cached * CACHED_PRICE
+            output_cost = (outp or 0) * OUTPUT_PRICE
+            total_cost = input_cost + output_cost
+
+            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.4f}/${self.session_cost:.4f})"
             print(styled(u, "90m"))
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
@@ -939,6 +954,7 @@ class GorkCode:
                 elif command == "/clear":
                     self.previous_response_id = None
                     self.pending_notes.clear()
+                    self.session_cost = 0.0
                     print("Conversation cleared.")
                 elif command == "/undo":
                     out = run(f"git -C {self.repo_root} reset --soft HEAD~1")
