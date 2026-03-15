@@ -920,7 +920,7 @@ class GorkCode:
             output_cost = (outp or 0) * OUTPUT_PRICE
             total_cost = input_cost + output_cost
 
-            u = f"ctx:{len(self.context_files)}f • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.2f}/${self.session_cost:.2f})"
+            u = f"ctx:~{inp:,}t • {inp:,}↑{outp:,}↓ • {cache_pct} cached • ${self.session_cost:.2f}"
             print(styled(u, "90m"))
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
