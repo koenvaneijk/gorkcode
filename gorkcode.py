@@ -83,7 +83,7 @@ TOOLS: Final[List[Dict[str, Any]]] = [
     {
         "type": "function",
         "name": "edit_file",
-        "description": "Apply one exact find/replace edit to an existing text file. The find text must match exactly, including whitespace.",
+        "description": "Apply one exact find/replace edit to an existing text file. The find text must match exactly, including whitespace. Use shortest unique non-regex snippet.",
         "parameters": {
             "type": "object",
             "properties": {
