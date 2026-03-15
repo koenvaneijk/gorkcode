@@ -469,6 +469,13 @@ class Spinner:
 
 
 class GorkCode:
+    """Core agent orchestrating the interactive coding session.
+
+    Handles repo context, tool execution (read/edit/run/commit),
+    xAI API communication, and the REPL loop while following
+    strict safety and precision rules.
+    """
+
     def __init__(self) -> None:
         self.repo_root: str = run("git rev-parse --show-toplevel") or os.getcwd()
         self.context_files: Set[str] = set()
