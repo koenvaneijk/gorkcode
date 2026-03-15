@@ -535,12 +535,7 @@ class GorkCode:
                     "- Only run shell commands when genuinely necessary.\n"
                     "- After changes, call commit_changes with a short message if and only if files were actually modified.\n"
                     "- Keep all user-facing answers concise.\n\n"
-                    "Important: When calling tools, output raw JSON exactly like this:\n"
-                    "{\n"
-                    '  "type": "function_call",\n'
-                    '  "name": "tool_name",\n'
-                    '  "arguments": { ... }\n'
-                    "}\n\n"
+                    "Important: When calling tools, output raw JSON. "
                     "Do not escape any quotes inside the JSON arguments. Output raw double quotes."
                 ),
             },
