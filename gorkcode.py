@@ -900,8 +900,14 @@ class GorkCode:
         while True:
             title(f"❓ {APP_NAME}")
             last = self.last_usage or {}
-            u = f"last:{last.get('input_tokens',0):,}↑/{last.get('output_tokens',0):,}↓"
-            print(styled(f"ctx:~{len(self.context_files)*300:,} {u}", "90m"), end=" ")
+            ctx_est = len(self.context_files) * 300
+            inp = last.get("input_tokens", 0)
+            outp = last.get("output_tokens", 0)
+            cached = last.get("input_tokens_details", {}).get("cached_tokens", 0)
+            cache_pct = f"{int(cached / inp * 100) if inp > 0 else 0}%"
+            reason = last.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓({reason:,} reason)"
+            print(styled(u, "90m"))
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
             try:
