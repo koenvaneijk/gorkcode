@@ -118,6 +118,18 @@ TOOLS: Final[List[Dict[str, Any]]] = [
             "required": ["message"],
         },
     },
+    {
+        "type": "function",
+        "name": "browser_execute",
+        "description": "Execute JavaScript in the currently active browser tab. Returns captured console logs and result. Use for debugging, inspection, or navigation (window.location = '...'). Always targets the active tab.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "JavaScript code to execute"}
+            },
+            "required": ["code"],
+        },
+    },
 ]
 
 
@@ -779,6 +791,29 @@ class GorkCode:
         print(styled(output, "32m"))
         return {"ok": True, "message": message, "git": output}
 
+    def tool_browser_execute(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        code = args.get("code", "").strip()
+        if not code:
+            return {"ok": False, "error": "empty code"}
+
+        print(f"{styled(' øgork ', '48;2;255;255;255;30m')} wants to execute in browser:")
+        print(f"  {styled(code, '48;5;236;37m')}")
+        title(f"⏳ {APP_NAME} (browser)")
+
+        try:
+            req = urllib.request.Request(
+                "http://localhost:9876/execute",
+                headers={"Content-Type": "application/json"},
+                data=json.dumps({"code": code}).encode(),
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                result = json.loads(resp.read().decode())
+            print(styled("✓ Sent to browser extension", "32m"))
+            return {"ok": True, "code": code[:80] + "...", "status": "executed", "result": result}
+        except Exception as e:
+            return {"ok": False, "error": f"bridge not reachable: {e}. Run 'python gorkbridge.py' and load the extension."}
+
     def execute_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         if name == "request_files":
             return self.tool_request_files(args)
@@ -792,6 +827,8 @@ class GorkCode:
             return self.tool_run_shell_command(args)
         if name == "commit_changes":
             return self.tool_commit_changes(args)
+        if name == "browser_execute":
+            return self.tool_browser_execute(args)
         return {"ok": False, "error": f"unknown tool: {name}"}
 
     def run_agent_turn(self, request: str) -> None:
@@ -1002,6 +1039,7 @@ class GorkCode:
                     print("/clear - Clear conversation")
                     print("/undo - Undo commit")
                     print("/roast - Roast repo")
+                    print("browser_execute - Run JS in active browser tab (via bridge)")
                     print("/exit - Exit")
                     print("!<cmd> - Shell")
                 continue

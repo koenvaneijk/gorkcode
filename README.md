@@ -14,7 +14,8 @@ Watch the [`/roast` demo](https://github.com/koenvaneijk/gorkcode/blob/main/.git
 
 ## ✨ Features
 
-- **Structured Tools**: Uses `request_files`, `edit_file`, `create_file`, `run_shell_command`, `commit_changes` via function calls.
+- **Structured Tools**: Uses `request_files`, `edit_file`, `create_file`, `run_shell_command`, `commit_changes`, `browser_execute` via function calls.
+- **Browser Integration**: `browser_execute` tool lets the agent run JS in the active Chrome tab (console capture, DOM, navigation, debugging). Requires `gorkbridge.py` + Chrome extension.
 - **Precise Edits**: Exact string match find/replace with safety checks, Python linting, and diff preview.
 - **Safe Shell**: Run commands only with explicit user approval; output can be added to context.
 - **Dynamic Context**: Repo map always shown; explicitly load/drop files with `request_files`/`drop_files`.
@@ -99,6 +100,16 @@ python3 gorkcode.py
 ```
 
 The full system prompt and behavior rules for the AI are embedded directly in `gorkcode.py`.
+
+## 🌐 Browser Extension
+
+Run `python gorkbridge.py` (in separate terminal).
+
+Load the `chrome_extension/` folder as unpacked extension in Chrome.
+
+Use the `browser_execute` tool to run JS in the active tab. Output/logs are returned like shell commands.
+
+See popup for manual testing.
 
 ## 📄 License
 

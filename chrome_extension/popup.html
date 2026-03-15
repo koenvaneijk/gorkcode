@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 380px; font-family: system-ui; padding: 12px; }
+    button { width: 100%; padding: 10px; margin: 8px 0; }
+    pre { background: #f5f5f5; padding: 10px; font-size: 12px; max-height: 200px; overflow: auto; }
+    textarea { width: 100%; height: 120px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h3>Gorkcode Bridge</h3>
+  <button id="capture">Capture Tab State</button>
+  <textarea id="js" placeholder="Paste JS here to execute..."></textarea>
+  <button id="run">Execute JS in Active Tab</button>
+  <pre id="output"></pre>
+
+  <script src="popup.js"></script>
+</body>
+</html>
