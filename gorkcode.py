@@ -479,7 +479,6 @@ class GorkCode:
         self.session_cost: float = 0.0
         self._map_cache: Optional[str] = None
         self._map_mtime: float = 0.0
-        self._context_sent: bool = False
 
     def get_repo_map(self) -> str:
         """Cached version of get_map that respects .gitignore and uses mtime."""
@@ -559,19 +558,8 @@ class GorkCode:
             f"### Loaded Files\n{', '.join(sorted(self.context_files)) if self.context_files else '[none]'}",
         ]
 
-        # Only send full file contents on first message or after loading new files
-        if not self._context_sent and self.context_files:
-            files_block = []
-            for f in sorted(self.context_files):
-                if f in self.file_contents:
-                    body = self.file_contents[f]
-                else:
-                    content, error = safe_read_file(f, self.repo_root, confirm_large=False)
-                    body = content if error is None else f"[{error}]"
-                files_block.append(f"File: {f}\n```\n{body}\n```")
-            if files_block:
-                parts.append("### File Contents\n" + "\n".join(files_block))
-            self._context_sent = True
+        # File contents are no longer auto-injected (saves tokens).
+        # LLM must call request_files() when it needs them.
 
         if self.pending_notes:
             parts.append("### Extra Context\n" + "\n\n".join(self.pending_notes))
@@ -638,7 +626,6 @@ class GorkCode:
                     tokens = len(content) // 4
                     print(styled(f"  {len(content):,} chars • {len(content.splitlines())} lines • ~{tokens:,} tokens", "90m"))
         if added:
-            self._context_sent = False  # reset so we resend on next turn
             print(styled(f"+{len(added)} file(s) loaded", "93m"))
         elif not results:
             print(styled("No valid paths provided", "33m"))
@@ -652,8 +639,6 @@ class GorkCode:
                 self.context_files.discard(path)
                 self.file_contents.pop(path, None)
                 removed.append(path)
-        if removed:
-            self._context_sent = False
         return {"removed": removed}
 
     def tool_create_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -993,7 +978,6 @@ class GorkCode:
                     self.previous_response_id = None
                     self.pending_notes.clear()
                     self.session_cost = 0.0
-                    self._context_sent = False
                     print("Conversation cleared.")
                 elif command == "/undo":
                     out = run(f"git -C {self.repo_root} reset --soft HEAD~1")
