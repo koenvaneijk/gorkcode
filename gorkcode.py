@@ -454,6 +454,7 @@ class GorkCode:
         self.context_files: set[str] = set()
         self.pending_notes: List[str] = []
         self.previous_response_id: Optional[str] = None
+        self.last_usage: Optional[Dict[str, Any]] = None
 
     def xai_request(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         api_key = os.getenv("XAI_API_KEY")
@@ -479,6 +480,7 @@ class GorkCode:
         try:
             with urllib.request.urlopen(req) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
+                self.last_usage = body.get("usage")
                 spinner.stop()
                 print(f"{styled(' øgork ', '48;2;255;255;255;30m')} {styled('done', '90m')}\n")
                 return body
@@ -897,6 +899,9 @@ class GorkCode:
 
         while True:
             title(f"❓ {APP_NAME}")
+            last = self.last_usage or {}
+            u = f"last:{last.get('input_tokens',0):,}↑/{last.get('output_tokens',0):,}↓"
+            print(styled(f"ctx:~{len(self.context_files)*300:,} {u}", "90m"), end=" ")
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
             try:
