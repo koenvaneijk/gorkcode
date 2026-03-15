@@ -849,6 +849,18 @@ class GorkCode:
     def cmd_roast(self) -> None:
         self.run_agent_turn("Roast this repository. Be specific and technical.")
 
+    def cmd_status(self) -> None:
+        print(styled(f"Repository: {self.repo_root}", "36m"))
+        print(styled(f"Loaded: {len(self.context_files)} file(s)", "36m"))
+        if self.context_files:
+            for f in sorted(self.context_files)[:8]:
+                print(styled(f"  • {f}", "90m"))
+            if len(self.context_files) > 8:
+                print(styled(f"  ... +{len(self.context_files)-8} more", "90m"))
+        if self.previous_response_id:
+            print(styled("Conversation: active", "32m"))
+        print(styled(f"Model: {MODEL}", "90m"))
+
     def shell_user_command(self, shell_cmd: str) -> None:
         output_lines, exit_code = run_shell_interactive(shell_cmd)
         print(f"\n{styled(f'exit={exit_code}', '90m')}")
@@ -912,9 +924,12 @@ class GorkCode:
                         print(out)
                 elif command == "/roast":
                     self.cmd_roast()
+                elif command == "/status":
+                    self.cmd_status()
                 elif command == "/help":
                     print("/add <glob> - Add files")
                     print("/drop <file> - Remove file")
+                    print("/status - Show context & repo info")
                     print("/clear - Clear conversation")
                     print("/undo - Undo commit")
                     print("/roast - Roast repo")
