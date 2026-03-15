@@ -170,7 +170,7 @@ def title(t: str) -> None:
 
 def render_md(text: str) -> str:
     parts = re.split(r"(```[\s\S]*?```|`[^`\n]+`)", text)
-    result = []
+    result: List[str] = []
     for part in parts:
         if part.startswith("```") and part.endswith("```"):
             inner = part[3:-3]
