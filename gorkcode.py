@@ -869,7 +869,6 @@ class GorkCode:
             f"{styled(' øgork ', '48;2;255;255;255;30m')}"
             f"{styled(' code ', '48;5;236;37m')}"
             f" {styled(' ' + MODEL + ' ', '48;5;236;37m')}"
-            f" {styled(' native tools ', '48;5;236;37m')}"
             f" {styled(' ctrl+d to send ', '48;5;236;37m')}"
         )
 
