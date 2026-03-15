@@ -920,8 +920,17 @@ class GorkCode:
             output_cost = (outp or 0) * OUTPUT_PRICE
             total_cost = input_cost + output_cost
 
-            u = f"ctx:~{inp:,}t • {inp:,}↑{outp:,}↓ • {cache_pct} cached • ${self.session_cost:.2f}"
-            print(styled(u, "90m"))
+            # Creative status line: darker labels, brighter numbers
+            print(
+                styled("ctx:", "2;90m")
+                + styled(f"~{inp:,}t", "90m")
+                + styled(" • ", "2;90m")
+                + styled(f"{inp:,}↑{outp:,}↓", "90m")
+                + styled(" • ", "2;90m")
+                + styled(f"{cache_pct} cached", "2;90m")
+                + styled(" • $", "2;90m")
+                + styled(f"{self.session_cost:.2f}", "93m")
+            )
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
             try:
