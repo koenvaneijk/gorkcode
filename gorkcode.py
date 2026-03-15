@@ -929,7 +929,7 @@ class GorkCode:
                 + styled(" • ", "2;90m")
                 + styled(f"{cache_pct} cached", "2;90m")
                 + styled(" • $", "2;90m")
-                + styled(f"{self.session_cost:.2f}", "93m")
+                + styled(f"{self.session_cost:.2f}", "2;90m")
             )
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
