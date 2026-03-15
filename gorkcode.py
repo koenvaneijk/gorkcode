@@ -921,7 +921,7 @@ class GorkCode:
             output_cost = (outp or 0) * OUTPUT_PRICE
             total_cost = input_cost + output_cost
 
-            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.4f}/${self.session_cost:.4f})"
+            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.2f}/${self.session_cost:.2f})"
             print(styled(u, "90m"))
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
