@@ -911,7 +911,6 @@ class GorkCode:
         while True:
             title(f"❓ {APP_NAME}")
             last = self.last_usage or {}
-            ctx_est = len(self.context_files) * 300
             inp = last.get("input_tokens", 0)
             outp = last.get("output_tokens", 0)
             cached = last.get("input_tokens_details", {}).get("cached_tokens", 0)
@@ -921,7 +920,7 @@ class GorkCode:
             output_cost = (outp or 0) * OUTPUT_PRICE
             total_cost = input_cost + output_cost
 
-            u = f"ctx:~{ctx_est:,} • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.2f}/${self.session_cost:.2f})"
+            u = f"ctx:{len(self.context_files)}f • {inp:,}↑({cache_pct} cached) • {outp:,}↓(${total_cost:.2f}/${self.session_cost:.2f})"
             print(styled(u, "90m"))
             print(f"\a{styled('❯ ', '40;37m')}", end="", flush=True)
             input_lines = []
