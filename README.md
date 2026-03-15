@@ -14,12 +14,27 @@ Watch the [`/roast` demo](https://github.com/koenvaneijk/gorkcode/blob/main/.git
 
 ## ✨ Features
 
-- **Precise Edits**: Exact find/replace on files with safety checks and linting.
-- **Shell Commands**: Run commands (git, python, etc.) with explicit user approval.
-- **Dynamic Context**: Load/drop specific files as needed, with repo map.
-- **Built-in Commands**: `/roast`, `/add`, `!shell`, etc.
-- **Git Integration**: Automatic commit tool.
-- **Single-File**: Portable, zero dependencies beyond Python stdlib.
+- **Structured Tools**: Uses `request_files`, `edit_file`, `create_file`, `run_shell_command`, `commit_changes` via function calls.
+- **Precise Edits**: Exact string match find/replace with safety checks, Python linting, and diff preview.
+- **Safe Shell**: Run commands only with explicit user approval; output can be added to context.
+- **Dynamic Context**: Repo map always shown; explicitly load/drop files with `request_files`/`drop_files`.
+- **Built-in Commands**: `/roast`, `/add`, `/status`, `/clear`, `/undo`, `!shell`, etc.
+- **Git Integration**: Automatic `commit_changes` tool; `/undo` support.
+- **Single-File**: Portable, zero dependencies beyond Python stdlib + xAI API key.
+
+## 🛡️ AI Guidelines
+
+The coding expert follows these strict rules (embedded in `gorkcode.py`):
+
+- Think step by step before deciding to use tools
+- Answer normally when no tool is needed
+- Always read relevant files using `request_files` before editing them (unless creating a brand new file)
+- Prefer small, precise edits. Make the 'find' string as short and unique as possible
+- Preserve original formatting, whitespace, and surrounding code style exactly
+- If an edit's exact find text is not found, read the file again and use a more precise match
+- Only run shell commands when genuinely necessary
+- After changes, call `commit_changes` with a short message if and only if files were actually modified
+- Keep all user-facing answers concise
 
 ## 🚀 Quick Start
 
@@ -64,13 +79,14 @@ Watch the [`/roast` demo](https://github.com/koenvaneijk/gorkcode/blob/main/.git
 
 While running the REPL:
 
-- Enter your request then **Ctrl+D** (EOF) to submit
+- Multi-line input; press **Ctrl+D** (EOF) to submit
 - `/roast` - Roast this repository (see demo)
-- `/add <glob>` - Add files matching glob to context
-- `/drop <file>` - Remove a file from context
-- `/clear` - Clear conversation history
+- `/add <glob>` - Add files matching glob pattern to context
+- `/drop <file>` - Remove file from context
+- `/status` - Show repo, context, model and usage info
+- `/clear` - Clear conversation history and cost
 - `/undo` - Undo last commit (`git reset --soft HEAD~1`)
-- `!<cmd>` - Run a shell command and optionally add output to context
+- `!<cmd>` - Run shell command (optionally add output to context)
 - `/help` - Show available commands
 - `/exit` - Exit the program
 
