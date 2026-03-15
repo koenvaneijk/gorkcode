@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 MODEL = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
 MAX_FILE_SIZE = 100 * 1024  # 100KB
@@ -121,7 +122,7 @@ def styled(text: str, style: str) -> str:
     return f"{ansi(style)}{text}{ansi('0m')}"
 
 
-def run(shell_cmd: str):
+def run(shell_cmd: str) -> Optional[str]:
     try:
         return subprocess.check_output(
             shell_cmd, shell=True, text=True, stderr=subprocess.STDOUT
@@ -133,7 +134,7 @@ def run(shell_cmd: str):
 _TMUX_WIN = run("tmux display-message -p '#{window_id}' 2>/dev/null")
 
 
-def title(t: str):
+def title(t: str) -> None:
     print(f"\033]0;{t}\007", end="", flush=True)
     if _TMUX_WIN:
         run(f"tmux rename-window -t {_TMUX_WIN} {t!r} 2>/dev/null")
@@ -164,7 +165,7 @@ def render_md(text: str) -> str:
             part = re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", lambda m: f"{ansi('3m')}{m.group(1)}{ansi('23m')}", part)
             part = re.sub(r"(?<!\w)_([^_]+?)_(?!\w)", lambda m: f"{ansi('3m')}{m.group(1)}{ansi('23m')}", part)
 
-            def format_header(m):
+            def format_header(m: "re.Match[str]") -> str:
                 level, text_ = len(m.group(1)), m.group(2)
                 if level == 1:
                     return f"{ansi('1;4;33m')}{text_}{ansi('0m')}"
@@ -177,8 +178,8 @@ def render_md(text: str) -> str:
     return "".join(result)
 
 
-def truncate(lines, n=50, max_line_len=MAX_LINE_LENGTH):
-    def trunc_line(line):
+def truncate(lines: List[str], n: int = 50, max_line_len: int = MAX_LINE_LENGTH) -> List[str]:
+    def trunc_line(line: str) -> str:
         return line if len(line) <= max_line_len else line[:max_line_len] + "..."
 
     lines = [trunc_line(line) for line in lines]
@@ -188,7 +189,7 @@ def truncate(lines, n=50, max_line_len=MAX_LINE_LENGTH):
 _CACHED_SYSTEM_INFO = None
 
 
-def system_summary():
+def system_summary() -> Dict[str, Any]:
     global _CACHED_SYSTEM_INFO
     if _CACHED_SYSTEM_INFO is not None:
         return _CACHED_SYSTEM_INFO
@@ -246,7 +247,9 @@ def safe_repo_path(root: str, rel_path: str) -> Path:
     return p
 
 
-def safe_read_file(path, root=None, confirm_large=False):
+def safe_read_file(
+    path: str, root: Optional[str] = None, confirm_large: bool = False
+) -> Tuple[Optional[str], Optional[str]]:
     p = Path(path) if root is None else safe_repo_path(root, path)
     if not p.exists():
         return None, "not found"
@@ -293,7 +296,7 @@ def safe_read_file(path, root=None, confirm_large=False):
         return None, f"read error: {e}"
 
 
-def get_map(root, max_files=100):
+def get_map(root: str, max_files: int = 100) -> str:
     binary_ext = {
         ".png",
         ".jpg",
@@ -371,7 +374,7 @@ def get_map(root, max_files=100):
     return "\n".join(output)
 
 
-def run_shell_interactive(cmd):
+def run_shell_interactive(cmd: str) -> Tuple[List[str], int]:
     output_lines = []
     process = subprocess.Popen(
         cmd,
@@ -397,7 +400,7 @@ def run_shell_interactive(cmd):
     return output_lines, process.returncode
 
 
-def lint_py(path, content):
+def lint_py(path: str, content: str) -> Tuple[bool, Optional[str]]:
     if not path.endswith(".py"):
         return True, None
     try:
@@ -408,13 +411,13 @@ def lint_py(path, content):
 
 
 class Spinner:
-    def __init__(self, label="øgork"):
-        self.label = label
-        self.stop_event = threading.Event()
-        self.thread = None
+    def __init__(self, label: str = "øgork") -> None:
+        self.label: str = label
+        self.stop_event: threading.Event = threading.Event()
+        self.thread: Optional[threading.Thread] = None
 
-    def start(self):
-        def spin():
+    def start(self) -> None:
+        def spin() -> None:
             print()
             while not self.stop_event.is_set():
                 wave = (math.sin(time.time() * 4) + 1) / 2
@@ -427,7 +430,7 @@ class Spinner:
         self.thread = threading.Thread(target=spin, daemon=True)
         self.thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.stop_event.set()
         if self.thread:
             self.thread.join()
@@ -435,13 +438,13 @@ class Spinner:
 
 
 class GorkCode:
-    def __init__(self):
-        self.repo_root = run("git rev-parse --show-toplevel") or os.getcwd()
-        self.context_files = set()
-        self.pending_notes = []
-        self.previous_response_id = None
+    def __init__(self) -> None:
+        self.repo_root: str = run("git rev-parse --show-toplevel") or os.getcwd()
+        self.context_files: set[str] = set()
+        self.pending_notes: List[str] = []
+        self.previous_response_id: Optional[str] = None
 
-    def xai_request(self, payload):
+    def xai_request(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         api_key = os.getenv("XAI_API_KEY")
         if not api_key:
             print(styled("Error: XAI_API_KEY environment variable not set.", "31m"))
@@ -488,7 +491,7 @@ class GorkCode:
             print(styled(f"Err: {e}", "31m"))
             return None
 
-    def build_turn_input(self, request):
+    def build_turn_input(self, request: str) -> List[Dict[str, Any]]:
         now = datetime.datetime.now().astimezone()
         day = now.day
         suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
@@ -539,7 +542,7 @@ class GorkCode:
             {"role": "user", "content": "\n\n".join(parts)},
         ]
 
-    def extract_text(self, response):
+    def extract_text(self, response: Dict[str, Any]) -> str:
         texts = []
         for item in response.get("output", []):
             if item.get("type") != "message":
@@ -551,20 +554,20 @@ class GorkCode:
                         texts.append(text)
         return "\n".join(texts).strip()
 
-    def extract_function_calls(self, response):
+    def extract_function_calls(self, response: Dict[str, Any]) -> List[Dict[str, Any]]:
         calls = []
         for item in response.get("output", []):
             if item.get("type") == "function_call":
                 calls.append(item)
         return calls
 
-    def print_assistant_text(self, text):
+    def print_assistant_text(self, text: str) -> None:
         if not text:
             return
         print(render_md(text))
         print()
 
-    def tool_request_files(self, args):
+    def tool_request_files(self, args: Dict[str, Any]) -> Dict[str, Any]:
         paths = args["paths"]
         results = []
         added = []
@@ -592,7 +595,7 @@ class GorkCode:
             print(styled("No valid paths provided", "33m"))
         return {"files": results}
 
-    def tool_drop_files(self, args):
+    def tool_drop_files(self, args: Dict[str, Any]) -> Dict[str, Any]:
         removed = []
         for path in args["paths"]:
             path = path.strip()
@@ -601,7 +604,7 @@ class GorkCode:
                 removed.append(path)
         return {"removed": removed}
 
-    def tool_create_file(self, args):
+    def tool_create_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
         path = args["path"]
         content = args["content"]
         try:
@@ -628,7 +631,7 @@ class GorkCode:
         except (PermissionError, OSError) as e:
             return {"ok": False, "error": str(e)}
 
-    def tool_edit_file(self, args):
+    def tool_edit_file(self, args: Dict[str, Any]) -> Dict[str, Any]:
         path = args["path"]
         find = args["find"]
         replace = args["replace"]
@@ -682,7 +685,7 @@ class GorkCode:
         except (PermissionError, OSError) as e:
             return {"ok": False, "error": str(e)}
 
-    def tool_run_shell_command(self, args):
+    def tool_run_shell_command(self, args: Dict[str, Any]) -> Dict[str, Any]:
         cmd = args["command"].strip()
         if not cmd:
             return {"ok": False, "error": "empty command"}
@@ -713,7 +716,7 @@ class GorkCode:
         except Exception as e:
             return {"ok": False, "command": cmd, "error": str(e)}
 
-    def tool_commit_changes(self, args):
+    def tool_commit_changes(self, args: Dict[str, Any]) -> Dict[str, Any]:
         message = args["message"].strip()
         if not message:
             return {"ok": False, "error": "empty commit message"}
@@ -730,7 +733,7 @@ class GorkCode:
         print(styled(output, "32m"))
         return {"ok": True, "message": message, "git": output}
 
-    def execute_tool(self, name, args):
+    def execute_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         if name == "request_files":
             return self.tool_request_files(args)
         if name == "drop_files":
@@ -745,7 +748,7 @@ class GorkCode:
             return self.tool_commit_changes(args)
         return {"ok": False, "error": f"unknown tool: {name}"}
 
-    def run_agent_turn(self, request):
+    def run_agent_turn(self, request: str) -> None:
         response = self.xai_request(
             {
                 "model": MODEL,
@@ -826,7 +829,7 @@ class GorkCode:
                 return
             self.previous_response_id = response.get("id") or self.previous_response_id
 
-    def cmd_add(self, pattern):
+    def cmd_add(self, pattern: str) -> None:
         found = [
             f
             for f in glob.glob(pattern, root_dir=self.repo_root, recursive=True)
@@ -843,10 +846,10 @@ class GorkCode:
                 added.append(f)
         print(f"Added {len(added)} files" + (f", skipped {len(skipped)}" if skipped else ""))
 
-    def cmd_roast(self):
+    def cmd_roast(self) -> None:
         self.run_agent_turn("Roast this repository. Be specific and technical.")
 
-    def shell_user_command(self, shell_cmd):
+    def shell_user_command(self, shell_cmd: str) -> None:
         output_lines, exit_code = run_shell_interactive(shell_cmd)
         print(f"\n{styled(f'exit={exit_code}', '90m')}")
         title(f"❓ {APP_NAME}")
@@ -861,7 +864,7 @@ class GorkCode:
             self.pending_notes.append(f"$ {shell_cmd}\nexit={exit_code}\n{body}")
             print(styled("Added to context", "93m"))
 
-    def repl(self):
+    def repl(self) -> None:
         print(
             f"{styled(' øgork ', '48;2;255;255;255;30m')}"
             f"{styled(' code ', '48;5;236;37m')}"
@@ -929,7 +932,7 @@ class GorkCode:
             self.run_agent_turn(user_input)
 
 
-def main():
+def main() -> None:
     GorkCode().repl()
 
 
