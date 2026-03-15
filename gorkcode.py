@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-VERSION = 2
-APP_NAME = "gorkcode"
+from __future__ import annotations
+
+VERSION: Final[int] = 2
+APP_NAME: Final[str] = "gorkcode"
 
 import ast
 import datetime
@@ -20,14 +22,16 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from re import Match
+from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
-MODEL = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
-MAX_FILE_SIZE = 100 * 1024  # 100KB
-MAX_LINE_LENGTH = 500
-MAX_TOOL_LOOPS = 24
+# Configuration
+MODEL: Final[str] = os.getenv("XAI_MODEL", "grok-4.20-beta-latest-reasoning")
+MAX_FILE_SIZE: Final[int] = 100 * 1024  # 100KB
+MAX_LINE_LENGTH: Final[int] = 500
+MAX_TOOL_LOOPS: Final[int] = 24
 
-TOOLS = [
+TOOLS: Final[list[dict[str, Any]]] = [
     {
         "type": "function",
         "name": "request_files",
@@ -115,14 +119,17 @@ TOOLS = [
 
 
 def ansi(code: str) -> str:
+    """Return ANSI escape sequence."""
     return f"\033[{code}"
 
 
 def styled(text: str, style: str) -> str:
+    """Wrap text with ANSI style codes."""
     return f"{ansi(style)}{text}{ansi('0m')}"
 
 
 def run(shell_cmd: str) -> Optional[str]:
+    """Run shell command and return stripped output or None on error."""
     try:
         return subprocess.check_output(
             shell_cmd, shell=True, text=True, stderr=subprocess.STDOUT
@@ -131,10 +138,11 @@ def run(shell_cmd: str) -> Optional[str]:
         return None
 
 
-_TMUX_WIN = run("tmux display-message -p '#{window_id}' 2>/dev/null")
+_TMUX_WIN: Optional[str] = run("tmux display-message -p '#{window_id}' 2>/dev/null")
 
 
 def title(t: str) -> None:
+    """Set terminal title (and tmux window name if applicable)."""
     print(f"\033]0;{t}\007", end="", flush=True)
     if _TMUX_WIN:
         run(f"tmux rename-window -t {_TMUX_WIN} {t!r} 2>/dev/null")
@@ -165,7 +173,7 @@ def render_md(text: str) -> str:
             part = re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", lambda m: f"{ansi('3m')}{m.group(1)}{ansi('23m')}", part)
             part = re.sub(r"(?<!\w)_([^_]+?)_(?!\w)", lambda m: f"{ansi('3m')}{m.group(1)}{ansi('23m')}", part)
 
-            def format_header(m: "re.Match[str]") -> str:
+            def format_header(m: Match[str]) -> str:
                 level, text_ = len(m.group(1)), m.group(2)
                 if level == 1:
                     return f"{ansi('1;4;33m')}{text_}{ansi('0m')}"
@@ -186,10 +194,11 @@ def truncate(lines: List[str], n: int = 50, max_line_len: int = MAX_LINE_LENGTH)
     return lines if len(lines) <= n else lines[:10] + ["[TRUNCATED]"] + lines[-40:]
 
 
-_CACHED_SYSTEM_INFO = None
+_CACHED_SYSTEM_INFO: Optional[Dict[str, Any]] = None
 
 
 def system_summary() -> Dict[str, Any]:
+    """Return cached system info dict."""
     global _CACHED_SYSTEM_INFO
     if _CACHED_SYSTEM_INFO is not None:
         return _CACHED_SYSTEM_INFO
@@ -239,6 +248,7 @@ def system_summary() -> Dict[str, Any]:
 
 
 def safe_repo_path(root: str, rel_path: str) -> Path:
+    """Ensure path is within repo root (prevents escapes)."""
     p = Path(root, rel_path)
     resolved = p.resolve(strict=False)
     root_resolved = Path(root).resolve()
@@ -250,6 +260,7 @@ def safe_repo_path(root: str, rel_path: str) -> Path:
 def safe_read_file(
     path: str, root: Optional[str] = None, confirm_large: bool = False
 ) -> Tuple[Optional[str], Optional[str]]:
+    """Safely read file with size/symlink/binary checks."""
     p = Path(path) if root is None else safe_repo_path(root, path)
     if not p.exists():
         return None, "not found"
